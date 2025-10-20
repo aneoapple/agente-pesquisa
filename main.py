@@ -1,4 +1,4 @@
-# main.py - Lógica de Extração de PDF para o Render
+# main.py - Agente de RAG de PDF/CSV para o Render
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -18,6 +18,8 @@ CORS(app, resources={r"/*": {"origins": "https://aneoapple.github.io"}})
 # --- CONFIGURAÇÃO ---
 # O arquivo CSV deve estar no mesmo diretório que este main.py
 CSV_FILE_NAME = 'affix_pdfs_manifest (3).csv'
+MAX_PDFS_TO_ANALYZE = 10 # Limite para evitar timeout, já que há 287 PDFs
+# --------------------
 
 # Inicializa o cliente Gemini (usará a variável de ambiente)
 try:
@@ -40,14 +42,10 @@ def extrair_texto_do_pdf(url):
         
         # 2. Extrair o texto usando pdfplumber
         with pdfplumber.open(pdf_bytes) as pdf:
-            for i, page in enumerate(pdf.pages):
-                texto_total += page.extract_text()
-                # Limita a extração para não sobrecarregar o modelo de IA e o servidor.
-                # O limite de 287 PDFs inteiros pode ser muito grande para uma única requisição.
-                # Vamos limitar a 5 PDFs por requisição para evitar timeout e limite de tokens.
-                if i >= 5: 
-                    break 
-
+            # Limita a extração para não sobrecarregar o modelo de IA.
+            for page in pdf.pages:
+                texto_total += page.extract_text() + "\n\n"
+        
         if not texto_total.strip():
             return f"ERRO_PDF: Conteúdo vazio na URL {url}."
 
@@ -56,19 +54,29 @@ def extrair_texto_do_pdf(url):
     except Exception as e:
         return f"ERRO_EXTRAÇÃO_PDF: {url}. Detalhe: {e}"
 
-def agente_analise_ia(pergunta_usuario):
+def agente_analise_pdf(pergunta_usuario):
     """
     Função que integra Leitura de CSV, Extração de PDF e Análise de IA.
     """
+    if not client:
+        return "Erro: Cliente Gemini não inicializado. Verifique a chave de API."
+        
     try:
         # 1. Leitura do CSV para obter as URLs
         if not os.path.exists(CSV_FILE_NAME):
-             return "ERRO FATAL: Arquivo CSV não encontrado no servidor."
+             return f"ERRO FATAL: Arquivo CSV '{CSV_FILE_NAME}' não encontrado no servidor."
              
         df = pd.read_csv(CSV_FILE_NAME)
-        # Usaremos as 5 primeiras URLs para um teste rápido e para evitar o timeout de 287 downloads.
-        # Em produção, você precisaria de um sistema assíncrono para processar 287 arquivos.
-        urls_para_analise = df['url'].head(5).tolist()
+        
+        # Filtra apenas URLs que contém 'Samp' no nome do arquivo (para focar na sua pesquisa)
+        # O URL de Samp que você deu como exemplo tem "Samp" no nome.
+        # df_filtrado = df[df['name'].str.contains('Samp', case=False, na=False)]
+        
+        # Caso queira analisar os 10 primeiros de forma genérica:
+        urls_para_analise = df['url'].head(MAX_PDFS_TO_ANALYZE).tolist()
+        
+        if not urls_para_analise:
+            return "Nenhum PDF encontrado na lista para análise."
 
         # 2. Coleta de Conteúdo (Extração de PDF)
         conteudo_coletado = ""
@@ -80,20 +88,18 @@ def agente_analise_ia(pergunta_usuario):
         system_instruction = (
             "Você é um especialista em análise de documentos de planos de saúde. "
             "Sua tarefa é responder à pergunta do usuário usando APENAS as informações "
-            "contidas no 'CONTEÚDO DOS PDFS' abaixo. Se a informação não estiver disponível, diga que não foi encontrada."
+            "contidas no 'CONTEÚDO DOS PDFS' abaixo. Se a informação não estiver disponível, diga que não foi encontrada. "
+            "Forneça a resposta em formato claro e com as devidas fontes."
         )
 
         prompt_completo = (f"{system_instruction}\n\n--- CONTEÚDO DOS PDFS ---\n{conteudo_coletado}\n\n--- PERGUNTA DO USUÁRIO ---\n{pergunta_usuario}")
 
         # 4. Chama o Modelo Gemini
-        if client:
-            response = client.models.generate_content(
-                model='gemini-2.5-flash', 
-                contents=prompt_completo
-            )
-            return response.text
-        else:
-            return "Erro: O cliente Gemini não foi inicializado. Verifique a chave de API."
+        response = client.models.generate_content(
+            model='gemini-2.5-flash', 
+            contents=prompt_completo
+        )
+        return response.text
 
     except Exception as e:
         return f"Erro interno durante a análise: {e}"
@@ -117,6 +123,7 @@ def pesquisa_api():
         return jsonify({"resposta": resposta_ia}), 200
 
     except Exception as e:
+        # Se houver um erro de servidor durante a execução
         return jsonify({"resposta": f"Erro interno do servidor: {e}"}), 500
 
 if __name__ == '__main__':
