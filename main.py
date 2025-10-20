@@ -1,21 +1,35 @@
+# main.py - Lógica final do Backend para o Render
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import requests
 from bs4 import BeautifulSoup
 from google import genai
+import sys
+# Importa sys para corrigir um erro comum de ambiente Python3.13 no Render
 
-# Configuração da Chave da API Gemini
-# Você deve definir a variável de ambiente. Se estiver no Colab, rode um bloco com !pip e os.environ
-# Se estiver em um servidor, a chave deve ser definida no ambiente do servidor.
-# --- INÍCIO DA CONFIGURAÇÃO DE CHAVE ---
-# O cliente genai.Client() usará esta variável:
-# os.environ['GEMINI_API_KEY'] = "SUA_CHAVE_DE_API_COMPLETA_AQUI" 
-# --- FIM DA CONFIGURAÇÃO DE CHAVE ---
+# Inicializa o aplicativo Flask
+app = Flask(__name__)
+# Permite que o seu site do GitHub Pages acesse esta API (CORS)
+CORS(app, resources={r"/*": {"origins": "https://aneoapple.github.io"}}) 
+
+# --- CONFIGURAÇÃO DA CHAVE DE API ---
+# A chave GEMINI_API_KEY será lida automaticamente pelo Render
+# a partir das Variáveis de Ambiente que você configurou.
+# ------------------------------------
 
 # Lista de URLs alvo
 URLS_ALVO = ["https://www.affix.com.br/", "https://www.alter.com.br/"]
 
-# Inicializa o cliente (usará a variável de ambiente)
-client = genai.Client()
+# Inicializa o cliente Gemini (usará a variável de ambiente)
+# O try/except é para prevenir falha se a chave não for encontrada
+try:
+    client = genai.Client()
+except Exception as e:
+    # Se a chave não estiver na variável de ambiente do Render, o cliente pode falhar
+    print(f"Erro ao inicializar o cliente Gemini: {e}", file=sys.stderr)
+    client = None # Define como None para ser verificado na rota da API
 
 def extrair_texto_da_url(url):
     """
@@ -38,9 +52,9 @@ def extrair_texto_da_url(url):
         # Se houver um erro de bloqueio/acesso, retorna esta mensagem.
         return f"ERRO_SCRAPING: {url}. Detalhe: {e}"
 
-def agente_local_run(pergunta_usuario):
+def agente_analise_ia(pergunta_usuario):
     """
-    Função principal que integra Scraping Básico e Análise de IA.
+    Função que integra Scraping Básico e Análise de IA.
     """
     # 1. Faz o Scraping
     conteudo_scraped = ""
@@ -58,15 +72,38 @@ def agente_local_run(pergunta_usuario):
     prompt_completo = (f"{system_instruction}\n\n--- CONTEÚDO SCRAPED ---\n{conteudo_scraped}\n\n--- PERGUNTA DO USUÁRIO ---\n{pergunta_usuario}")
 
     # 3. Chama o Modelo Gemini
-    response = client.models.generate_content(
-        model='gemini-2.5-flash', 
-        contents=prompt_completo
-    )
-    return response.text
+    if client:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash', 
+            contents=prompt_completo
+        )
+        return response.text
+    else:
+        return "Erro: O cliente Gemini não foi inicializado. Verifique a chave de API."
 
-# 4. Interface de Teste no Colab (Executará a análise)
-pergunta = input("Digite sua pergunta de pesquisa (Ex: O que é a Alter Benefícios?): ")
-resposta = agente_local_run(pergunta)
+# -------------------------------------------------------------------
+# O ENDPOINT REAL DA API
+# -------------------------------------------------------------------
 
-print("\n--- Resposta da IA ---")
-print(resposta)
+@app.route('/pesquisa', methods=['POST'])
+def pesquisa_api():
+    try:
+        data = request.get_json()
+        pergunta = data.get('pergunta', '')
+        
+        if not pergunta:
+            return jsonify({"resposta": "Erro: Pergunta não fornecida."}), 400
+
+        # Executa a função de análise de IA
+        resposta_ia = agente_analise_ia(pergunta)
+        
+        return jsonify({"resposta": resposta_ia}), 200
+
+    except Exception as e:
+        # Se houver um erro de servidor durante a execução
+        return jsonify({"resposta": f"Erro interno do servidor: {e}"}), 500
+
+# Esta é a instrução para o Gunicorn (o servidor web)
+# Ele a carrega para iniciar a aplicação 'app'
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=os.environ.get('PORT', 8080))
