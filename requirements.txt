@@ -1,5 +1,6 @@
-# requirements.txt
-google-genai
-Flask 
+Flask
+flask-cors
 requests
 beautifulsoup4
+google-genai
+gunicorn
