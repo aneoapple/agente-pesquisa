@@ -1,0 +1,19 @@
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos de Ambiente Virtual Python (se for desenvolver localmente)
+venv/
+.venv/
+__pycache__/
+
+# Arquivos de Log e Temporários
+*.log
+*.tmp
+*.temp
+
+# ARQUIVOS SENSÍVEIS (MUITO IMPORTANTE!)
+# Se você tiver chaves de API, coloque-as em um arquivo .env, e adicione-o aqui.
+.env
+api_key.txt
+credentials.json
