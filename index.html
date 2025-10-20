@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agente de Pesquisa de Sites</title> 
-        <style>
+    <title>Agente de Pesquisa de Sites</title> 
+        <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
@@ -53,11 +53,11 @@
 </head>
 <body>
 
-    <h1>Agente de Pesquisa de Sites (Affix e Alter)</h1> 
-        <p>Faça uma pergunta. O agente fará scraping em tempo real para responder:</p>
+    <h1>Agente de Pesquisa de Sites (Affix e Alter)</h1> 
+        <p>Faça uma pergunta. O agente fará scraping em tempo real para responder:</p>
 
-    <input type="text" id="queryInput" placeholder="Ex: 'Quais são os principais serviços da Alter Benefícios?'" > 
-        <button onclick="enviarPergunta()">Buscar Informação</button>
+    <input type="text" id="queryInput" placeholder="Ex: 'Quais são os principais serviços da Alter Benefícios?'" > 
+        <button onclick="enviarPergunta()">Buscar Informação</button>
 
     <h2>Resultado da Pesquisa:</h2>
     <div id="resultado">
@@ -65,10 +65,9 @@
     </div>
 
     <script>
-        // ENDPOINT CORRIGIDO! Aponta para o seu servidor de Backend (Scraping + IA Gemini)
-        const API_ENDPOINT = 'https://aneo-agente-scraper.replit.app/pesquisa'; 
-        // OBS: Este URL é um exemplo. Deve ser substituído pelo seu servidor real.
-        
+        // ENDPOINT CORRIGIDO! Aponta para o seu servidor de Backend (Render)
+        const API_ENDPOINT = 'https://agente-pesquisa.onrender.com/pesquisa'; 
+        
         function enviarPergunta() {
             const query = document.getElementById('queryInput').value;
             const resultadoDiv = document.getElementById('resultado');
@@ -98,7 +97,7 @@
             .catch(error => {
                 console.error('Erro:', error);
                 // Mensagem ajustada para o contexto atual:
-                resultadoDiv.innerHTML = `Erro de Conexão. Verifique se o servidor de Backend (Serverless/Replit) está online. Detalhe: ${error.message}`;
+                resultadoDiv.innerHTML = `Erro de Conexão. Verifique se o servidor de Backend (Render) está online. Detalhe: ${error.message}`;
             });
         }
     </script>
