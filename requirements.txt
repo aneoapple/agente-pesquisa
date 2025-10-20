@@ -1,0 +1,5 @@
+# requirements.txt
+google-genai
+Flask 
+requests
+beautifulsoup4
