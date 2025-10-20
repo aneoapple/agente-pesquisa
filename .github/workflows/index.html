@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente de Pesquisa do Manual</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #007bff;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+        }
+        input[type="text"], button {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input[type="text"] {
+            width: 70%;
+            margin-right: 10px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #resultado {
+            background-color: #ffffff;
+            border: 1px solid #007bff;
+            padding: 15px;
+            min-height: 100px;
+            border-radius: 5px;
+            white-space: pre-wrap; /* Preserva formatação do texto (quebras de linha) */
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Pesquisar Manual Hapvida João Pessoa</h1>
+    <p>Faça uma pergunta sobre o conteúdo do PDF:</p>
+
+    <input type="text" id="queryInput" placeholder="Ex: 'Preço 0 a 18 anos enfermaria'" >
+    <button onclick="enviarPergunta()">Buscar Informação</button>
+
+    <h2>Resultado da Pesquisa:</h2>
+    <div id="resultado">
+        A resposta da IA aparecerá aqui...
+    </div>
+
+    <script>
+        // ESTA URL SERÁ ATUALIZADA NA FASE 3/4
+        // É O ENDPOINT DA SUA API DE IA (BACKEND)
+        const API_ENDPOINT = 'SUA_URL_DE_BACKEND_AQUI'; 
+
+        function enviarPergunta() {
+            const query = document.getElementById('queryInput').value;
+            const resultadoDiv = document.getElementById('resultado');
+
+            if (!query) {
+                resultadoDiv.innerHTML = "Por favor, digite sua pergunta.";
+                return;
+            }
+
+            resultadoDiv.innerHTML = '<span class="loading">Aguarde, consultando a IA...</span>';
+
+            // ATENÇÃO: Este 'fetch' SÓ IRÁ FUNCIONAR quando a API_ENDPOINT for uma URL real.
+            // Por enquanto, ele pode falhar ou dar erro de CORS, o que é esperado.
+
+            fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pergunta: query })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro na rede ou no servidor. Status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Assume que a API retorna um JSON com { "resposta": "texto da IA" }
+                resultadoDiv.innerHTML = data.resposta; 
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                resultadoDiv.innerHTML = `Erro de Conexão ou Servidor. Você precisa configurar o Backend da IA (Fase 3/4). Detalhe: ${error.message}`;
+            });
+        }
+    </script>
+</body>
+</html>
